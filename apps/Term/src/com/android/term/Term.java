@@ -116,8 +116,8 @@ public class Term extends Activity {
      */
     private static final int EMULATOR_VIEW = R.id.emulatorView;
 
-    private int mFontSize = 9;
-    private int mColorId = 2;
+    private int mFontSize = 12;
+    private int mColorId = 1;
     private int mControlKeyId = 0;
 
     private static final String FONTSIZE_KEY = "fontsize";
@@ -129,9 +129,10 @@ public class Term extends Activity {
     public static final int WHITE = 0xffffffff;
     public static final int BLACK = 0xff000000;
     public static final int BLUE = 0xff344ebd;
+    public static final int GREEN = 0xff00ff00;
 
     private static final int[][] COLOR_SCHEMES = {
-        {BLACK, WHITE}, {WHITE, BLACK}, {WHITE, BLUE}};
+        {BLACK, WHITE}, {WHITE, BLACK}, {WHITE, BLUE}, {GREEN, BLACK}};
 
     private static final int[] CONTROL_KEY_SCHEMES = {
         KeyEvent.KEYCODE_DPAD_CENTER,
@@ -148,8 +149,7 @@ public class Term extends Activity {
     private final static String DEFAULT_SHELL = "/system/bin/sh -";
     private String mShell;
 
-    private final static String DEFAULT_INITIAL_COMMAND =
-        "export PATH=/data/local/bin:$PATH";
+    private final static String DEFAULT_INITIAL_COMMAND = "";
     private String mInitialCommand;
 
     private SharedPreferences mPrefs;
@@ -205,6 +205,7 @@ public class Term extends Activity {
                int result = Exec.waitFor(procId);
                 Log.i(Term.LOG_TAG, "Subprocess exited: " + result);
                 handler.sendEmptyMessage(result);
+                finish();
              }
 
         };
@@ -229,8 +230,8 @@ public class Term extends Activity {
     }
 
     private void restart() {
-        startActivity(getIntent());
         finish();
+        startActivity(getIntent());
     }
 
     private void write(String data) {
@@ -364,10 +365,15 @@ public class Term extends Activity {
     }
 
     @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
     public void onResume() {
-        super.onResume();
         readPrefs();
         updatePrefs();
+        super.onResume();
     }
 
     @Override
@@ -376,6 +382,7 @@ public class Term extends Activity {
 
         mEmulatorView.updateSize();
     }
+
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -2614,7 +2621,7 @@ class EmulatorView extends View implements GestureDetector.OnGestureListener {
 
     public EmulatorView(Context context) {
         super(context);
-        commonConstructor();
+        commonConstructor(context);
     }
 
     public void register(TermKeyListener listener) {
@@ -2646,60 +2653,9 @@ class EmulatorView extends View implements GestureDetector.OnGestureListener {
         return new BaseInputConnection(this, false) {
 
             @Override
-            public boolean beginBatchEdit() {
-                return true;
-            }
-
-            @Override
-            public boolean clearMetaKeyStates(int states) {
-                return true;
-            }
-
-            @Override
-            public boolean commitCompletion(CompletionInfo text) {
-                return true;
-            }
-
-            @Override
             public boolean commitText(CharSequence text, int newCursorPosition) {
                 sendText(text);
                 return true;
-            }
-
-            @Override
-            public boolean deleteSurroundingText(int leftLength, int rightLength) {
-                return true;
-            }
-
-            @Override
-            public boolean endBatchEdit() {
-                return true;
-            }
-
-            @Override
-            public boolean finishComposingText() {
-                return true;
-            }
-
-            @Override
-            public int getCursorCapsMode(int reqModes) {
-                return 0;
-            }
-
-            @Override
-            public ExtractedText getExtractedText(ExtractedTextRequest request,
-                    int flags) {
-                return null;
-            }
-
-            @Override
-            public CharSequence getTextAfterCursor(int n, int flags) {
-                return null;
-            }
-
-            @Override
-            public CharSequence getTextBeforeCursor(int n, int flags) {
-                return null;
             }
 
             @Override
@@ -2725,14 +2681,32 @@ class EmulatorView extends View implements GestureDetector.OnGestureListener {
             @Override
             public boolean sendKeyEvent(KeyEvent event) {
                 if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    switch(event.getKeyCode()) {
-                    case KeyEvent.KEYCODE_DEL:
-                        sendChar(127);
-                        break;
+                    // Some keys are sent here rather than to commitText.
+                    // In particular, del and the digit keys are sent here.
+                    // As a bit of defensive programming, handle every
+                    // key with an ASCII meaning.
+                    int keyCode = event.getKeyCode();
+                    if (keyCode >= 0 && keyCode < KEYCODE_CHARS.length()) {
+                        char c = KEYCODE_CHARS.charAt(keyCode);
+                        if (c > 0) {
+                            sendChar(c);
+                        }
                     }
                 }
                 return true;
             }
+
+            private final String KEYCODE_CHARS =
+                "\000\000\000\000\000\000\000" + "0123456789*#"
+                + "\000\000\000\000\000\000\000\000\000\000"
+                + "abcdefghijklmnopqrstuvwxyz,."
+                + "\000\000\000\000"
+                + "\011 "   // tab, space
+                + "\000\000\000" // sym .. envelope
+                + "\015\177" // enter, del
+                + "`-=[]\\;'/@"
+                + "\000\000\000"
+                + "+";
 
             @Override
             public boolean setComposingText(CharSequence text, int newCursorPosition) {
@@ -2784,17 +2758,17 @@ class EmulatorView extends View implements GestureDetector.OnGestureListener {
                 context.obtainStyledAttributes(android.R.styleable.View);
         initializeScrollbars(a);
         a.recycle();
-        commonConstructor();
+        commonConstructor(context);
     }
 
-    private void commonConstructor() {
+    private void commonConstructor(Context context) {
         mTextRenderer = null;
         mCursorPaint = new Paint();
         mCursorPaint.setARGB(255,128,128,128);
         mBackgroundPaint = new Paint();
         mTopRow = 0;
         mLeftColumn = 0;
-        mGestureDetector = new GestureDetector(this);
+        mGestureDetector = new GestureDetector(context, this, null);
         mGestureDetector.setIsLongpressEnabled(false);
         setVerticalScrollBarEnabled(true);
     }
