@@ -24,9 +24,6 @@ import android.os.Bundle;
  * A minimal "Hello, World!" application.
  */
 public class HelloActivity extends Activity {
-    public HelloActivity() {
-    }
-
     /**
      * Called with the activity is first created.
      */

@@ -70,6 +70,8 @@ class TestRunner(object):
   # default value for make -jX
   _DEFAULT_JOBS = 4
 
+  _DALVIK_VERIFIER_OFF_PROP = "dalvik.vm.dexopt-flags = v=n"
+
   def __init__(self):
     # disable logging of timestamp
     self._root_path = android_build.GetTop()
@@ -157,7 +159,6 @@ class TestRunner(object):
     group.add_option("-s", "--serial", dest="serial",
                      help="use specific serial")
     parser.add_option_group(group)
-
     self._options, self._test_args = parser.parse_args()
 
     if (not self._options.only_list_tests
@@ -228,9 +229,27 @@ class TestRunner(object):
     for test_suite in tests:
       self._AddBuildTarget(test_suite, target_set, extra_args_set)
 
+    if not self._options.preview:
+      self._adb.EnableAdbRoot()
+    else:
+      logger.Log("adb root")
+    rebuild_libcore = False
     if target_set:
       if self._options.coverage:
         coverage.EnableCoverageBuild()
+        # hack to remove core library intermediates
+        # hack is needed because:
+        # 1. EMMA_INSTRUMENT changes what source files to include in libcore
+        #    but it does not trigger a rebuild
+        # 2. there's no target (like "clear-intermediates") to remove the files
+        #    decently
+        rebuild_libcore = not coverage.TestDeviceCoverageSupport(self._adb)
+        if rebuild_libcore:
+          cmd = "rm -rf %s" % os.path.join(
+              self._root_path,
+              "out/target/common/obj/JAVA_LIBRARIES/core_intermediates/")
+          logger.Log(cmd)
+          run_command.RunCommand(cmd, return_output=False)
 
       # hack to build cts dependencies
       # TODO: remove this when build dependency support added to runtest or
@@ -245,6 +264,8 @@ class TestRunner(object):
           os.chdir(self._root_path)
           run_command.RunCommand(cmd, return_output=False)
           os.chdir(old_dir)
+      # turn off dalvik verifier if necessary
+      self._TurnOffVerifier(tests)
       target_build_string = " ".join(list(target_set))
       extra_args_string = " ".join(list(extra_args_set))
       # mmm cannot be used from python, so perform a similar operation using
@@ -259,9 +280,11 @@ class TestRunner(object):
         # run
         logger.Log("adb sync")
       else:
-        run_command.RunCommand(cmd, return_output=False)
+        # set timeout for build to 10 minutes, since libcore may need to
+        # be rebuilt
+        run_command.RunCommand(cmd, return_output=False, timeout_time=600)
         logger.Log("Syncing to device...")
-        self._adb.Sync()
+        self._adb.Sync(runtime_restart=rebuild_libcore)
 
   def _AddBuildTarget(self, test_suite, target_set, extra_args_set):
     build_dir = test_suite.GetBuildPath()
@@ -312,6 +335,36 @@ class TestRunner(object):
       if test.GetSuite() == 'cts':
         return True
     return False
+
+  def _TurnOffVerifier(self, test_list):
+    """Turn off the dalvik verifier if needed by given tests.
+
+    If one or more tests needs dalvik verifier off, and it is not already off,
+    turns off verifier and reboots device to allow change to take effect.
+    """
+    # hack to check if these are framework/base tests. If so, turn off verifier
+    # to allow framework tests to access package-private framework api
+    framework_test = False
+    for test in test_list:
+      if os.path.commonprefix([test.GetBuildPath(), "frameworks/base"]):
+        framework_test = True
+    if framework_test:
+      # check if verifier is off already - to avoid the reboot if not
+      # necessary
+      output = self._adb.SendShellCommand("cat /data/local.prop")
+      if not self._DALVIK_VERIFIER_OFF_PROP in output:
+        if self._options.preview:
+          logger.Log("adb shell \"echo %s >> /data/local.prop\""
+                     % self._DALVIK_VERIFIER_OFF_PROP)
+          logger.Log("adb reboot")
+          logger.Log("adb wait-for-device")
+        else:
+          logger.Log("Turning off dalvik verifier and rebooting")
+          self._adb.SendShellCommand("\"echo %s >> /data/local.prop\""
+                                     % self._DALVIK_VERIFIER_OFF_PROP)
+          self._adb.SendCommand("reboot")
+          self._adb.SendCommand("wait-for-device", timeout_time=60,
+                                retry_count=3)
 
   def RunTests(self):
     """Main entry method - executes the tests according to command line args."""

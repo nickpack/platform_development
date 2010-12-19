@@ -15,7 +15,7 @@ intermediates := $(TARGET_OUT_COMMON_INTERMEDIATES)/JAVA_LIBRARIES/android_stubs
 full_target := $(intermediates)/classes.jar
 src_dir := $(intermediates)/src
 classes_dir := $(intermediates)/classes
-framework_res_package := $(call intermediates-dir-for,APPS,framework-res)/package.apk
+framework_res_package := $(call intermediates-dir-for,APPS,framework-res,,COMMON)/package-export.apk
 
 $(full_target): PRIVATE_SRC_DIR := $(src_dir)
 $(full_target): PRIVATE_INTERMEDIATES_DIR := $(intermediates)
@@ -42,6 +42,7 @@ $(full_target): $(OUT_DOCS)/api-stubs-timestamp $(framework_res_package)
 	$(hide) (cd $(PRIVATE_CLASS_INTERMEDIATES_DIR) && rm -rf classes.dex META-INF)
 	$(hide) mkdir -p $(dir $@)
 	$(hide) jar -cf $@ -C $(PRIVATE_CLASS_INTERMEDIATES_DIR) .
+	$(hide) jar -u0f $@ -C $(PRIVATE_CLASS_INTERMEDIATES_DIR) resources.arsc
 
 .PHONY: android_stubs
 android_stubs: $(full_target)

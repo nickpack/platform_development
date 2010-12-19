@@ -102,12 +102,26 @@ public class MonkeySourceScript implements MonkeyEventSource {
 
     private static final String EVENT_KEYWORD_WRITEPOWERLOG = "WriteLog";
 
+    private static final String EVENT_KEYWORD_RUNCMD = "RunCmd";
+
+    private static final String EVENT_KEYWORD_TAP = "Tap";
+
+    private static final String EVENT_KEYWORD_PROFILE_WAIT = "ProfileWait";
+
+    private static final String EVENT_KEYWORD_DEVICE_WAKEUP = "DeviceWakeUp";
+
+    private static final String EVENT_KEYWORD_INPUT_STRING = "DispatchString";
+
     // a line at the end of the header
     private static final String STARTING_DATA_LINE = "start data >>";
 
     private boolean mFileOpened = false;
 
     private static int LONGPRESS_WAIT_TIME = 2000; // wait time for the long
+
+    private long mProfileWaitTime = 5000; //Wait time for each user profile
+
+    private long mDeviceSleepTime = 30000; //Device sleep time
 
     FileInputStream mFStream;
 
@@ -122,9 +136,11 @@ public class MonkeySourceScript implements MonkeyEventSource {
      * @param throttle The amount of time in ms to sleep between events.
      */
     public MonkeySourceScript(Random random, String filename, long throttle,
-            boolean randomizeThrottle) {
+            boolean randomizeThrottle, long profileWaitTime, long deviceSleepTime) {
         mScriptFileName = filename;
         mQ = new MonkeyEventQueue(random, throttle, randomizeThrottle);
+        mProfileWaitTime = profileWaitTime;
+        mDeviceSleepTime = deviceSleepTime;
     }
 
     /**
@@ -251,7 +267,6 @@ public class MonkeySourceScript implements MonkeyEventSource {
                 float yPrecision = Float.parseFloat(args[9]);
                 int device = Integer.parseInt(args[10]);
                 int edgeFlags = Integer.parseInt(args[11]);
-
                 int type = MonkeyEvent.EVENT_TYPE_TRACKBALL;
                 if (s.indexOf("Pointer") > 0) {
                     type = MonkeyEvent.EVENT_TYPE_POINTER;
@@ -260,6 +275,40 @@ public class MonkeySourceScript implements MonkeyEventSource {
                         y, pressure, size, metaState, xPrecision, yPrecision, device, edgeFlags);
                 mQ.addLast(e);
             } catch (NumberFormatException e) {
+            }
+            return;
+        }
+
+        // Handle tap event
+        if ((s.indexOf(EVENT_KEYWORD_TAP) >= 0) && args.length == 2) {
+            try {
+                float x = Float.parseFloat(args[0]);
+                float y = Float.parseFloat(args[1]);
+
+                // Set the default parameters
+                long downTime = SystemClock.uptimeMillis();
+                float pressure = 1;
+                float xPrecision = 1;
+                float yPrecision = 1;
+                int edgeFlags = 0;
+                float size = 5;
+                int device = 0;
+                int metaState = 0;
+                int type = MonkeyEvent.EVENT_TYPE_POINTER;
+
+                MonkeyMotionEvent e1 =
+                        new MonkeyMotionEvent(type, downTime, downTime, KeyEvent.ACTION_DOWN, x,
+                                y, pressure, size, metaState, xPrecision, yPrecision, device,
+                                edgeFlags);
+                MonkeyMotionEvent e2 =
+                        new MonkeyMotionEvent(type, downTime, downTime, KeyEvent.ACTION_UP, x,
+                                y, pressure, size, metaState, xPrecision, yPrecision, device,
+                                edgeFlags);
+                mQ.addLast(e1);
+                mQ.addLast(e2);
+
+            } catch (NumberFormatException e) {
+                System.err.println("// " + e.toString());
             }
             return;
         }
@@ -275,12 +324,17 @@ public class MonkeySourceScript implements MonkeyEventSource {
         if (s.indexOf(EVENT_KEYWORD_ACTIVITY) >= 0 && args.length >= 2) {
             String pkg_name = args[0];
             String cl_name = args[1];
-            String alarmTime = null;
+            long alarmTime = 0;
 
             ComponentName mApp = new ComponentName(pkg_name, cl_name);
 
             if (args.length > 2) {
-                alarmTime = args[2];
+                try {
+                    alarmTime = Long.parseLong(args[2]);
+                } catch (NumberFormatException e) {
+                    System.err.println("// " + e.toString());
+                    return;
+                }
             }
 
             if (args.length == 2) {
@@ -290,6 +344,23 @@ public class MonkeySourceScript implements MonkeyEventSource {
                 MonkeyActivityEvent e = new MonkeyActivityEvent(mApp, alarmTime);
                 mQ.addLast(e);
             }
+            return;
+        }
+
+        //Handle the device wake up event
+        if (s.indexOf(EVENT_KEYWORD_DEVICE_WAKEUP) >= 0){
+            String pkg_name = "com.google.android.powerutil";
+            String cl_name = "com.google.android.powerutil.WakeUpScreen";
+            long deviceSleepTime = mDeviceSleepTime;
+
+            ComponentName mApp = new ComponentName(pkg_name, cl_name);
+            MonkeyActivityEvent e1 = new MonkeyActivityEvent(mApp, deviceSleepTime);
+            mQ.addLast(e1);
+
+            //Add the wait event after the device sleep event so that the monkey
+            //can continue after the device wake up.
+            MonkeyWaitEvent e2 = new MonkeyWaitEvent(deviceSleepTime + 3000);
+            mQ.addLast(e2);
             return;
         }
 
@@ -310,6 +381,14 @@ public class MonkeySourceScript implements MonkeyEventSource {
                 mQ.addLast(e);
             } catch (NumberFormatException e) {
             }
+            return;
+        }
+
+
+        // Handle the profile wait time
+        if (s.indexOf(EVENT_KEYWORD_PROFILE_WAIT) >= 0) {
+            MonkeyWaitEvent e = new MonkeyWaitEvent(mProfileWaitTime);
+            mQ.addLast(e);
             return;
         }
 
@@ -355,6 +434,23 @@ public class MonkeySourceScript implements MonkeyEventSource {
             MonkeyPowerEvent e = new MonkeyPowerEvent();
             mQ.addLast(e);
         }
+
+      //Run the shell command
+        if (s.indexOf(EVENT_KEYWORD_RUNCMD) >= 0 && args.length == 1) {
+            String cmd = args[0];
+            MonkeyCommandEvent e = new MonkeyCommandEvent(cmd);
+            mQ.addLast(e);
+        }
+
+        //Input the string through the shell command
+        if (s.indexOf(EVENT_KEYWORD_INPUT_STRING) >= 0 && args.length == 1) {
+            String input = args[0];
+            String cmd = "input text " + input;
+            MonkeyCommandEvent e = new MonkeyCommandEvent(cmd);
+            mQ.addLast(e);
+            return;
+        }
+
     }
 
     /**

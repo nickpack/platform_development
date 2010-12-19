@@ -38,6 +38,10 @@ public class MonkeySourceRandomScript implements MonkeyEventSource {
     /** The random number generator */
     private Random mRandom;
 
+    private boolean mRandomizeScript = false;
+
+    private int mScriptCount = 0;
+
     /**
      * Creates a MonkeySourceRandomScript instance with an additional setup script.
      *
@@ -48,19 +52,21 @@ public class MonkeySourceRandomScript implements MonkeyEventSource {
      * @param random The random number generator.
      */
     public MonkeySourceRandomScript(String setupFileName, ArrayList<String> scriptFileNames,
-            long throttle, boolean randomizeThrottle, Random random) {
+            long throttle, boolean randomizeThrottle, Random random, long profileWaitTime,
+            long deviceSleepTime, boolean randomizeScript) {
         if (setupFileName != null) {
             mSetupSource = new MonkeySourceScript(random, setupFileName, throttle,
-                    randomizeThrottle);
+                    randomizeThrottle, profileWaitTime, deviceSleepTime);
             mCurrentSource = mSetupSource;
         }
 
         for (String fileName: scriptFileNames) {
             mScriptSources.add(new MonkeySourceScript(random, fileName, throttle,
-                      randomizeThrottle));
+                    randomizeThrottle, profileWaitTime, deviceSleepTime));
         }
 
         mRandom = random;
+        mRandomizeScript = randomizeScript;
     }
 
     /**
@@ -72,8 +78,10 @@ public class MonkeySourceRandomScript implements MonkeyEventSource {
      * @param random The random number generator.
      */
     public MonkeySourceRandomScript(ArrayList<String> scriptFileNames, long throttle,
-            boolean randomizeThrottle, Random random) {
-        this(null, scriptFileNames, throttle, randomizeThrottle, random);
+            boolean randomizeThrottle, Random random, long profileWaitTime, long deviceSleepTime,
+            boolean randomizeScript) {
+        this(null, scriptFileNames, throttle, randomizeThrottle, random, profileWaitTime,
+                deviceSleepTime, randomizeScript);
     }
 
     /**
@@ -89,8 +97,13 @@ public class MonkeySourceRandomScript implements MonkeyEventSource {
             int numSources = mScriptSources.size();
             if (numSources == 1) {
                 mCurrentSource = mScriptSources.get(0);
-            } else if (numSources > 1) {
-                mCurrentSource = mScriptSources.get(mRandom.nextInt(numSources));
+            } else if (numSources > 1 ) {
+                if (mRandomizeScript) {
+                    mCurrentSource = mScriptSources.get(mRandom.nextInt(numSources));
+                } else {
+                    mCurrentSource = mScriptSources.get(mScriptCount % numSources);
+                    mScriptCount++;
+                }
             }
         }
 

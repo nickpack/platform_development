@@ -36,6 +36,13 @@ See test_defs.xsd for more information.
     coverage_target="framework"
     continuous="true" />
 
+<!-- will not run in the continuous test as it needs both Wifi & 3G -->
+<test name="frameworks-connectivity"
+    build_path="frameworks/base/core/tests/ConnectivityManagerTest/"
+    package="com.android.connectivitymanagertest"
+    runner=".ConnectivityManagerUnitTestRunner"
+    coverage_target="framework" />
+
 <test name="frameworks-graphics"
     build_path="frameworks/base/graphics/tests/graphicstests"
     package="com.android.frameworks.graphicstests"
@@ -109,6 +116,14 @@ See test_defs.xsd for more information.
     package="com.android.common.tests"
     coverage_target="framework"
     continuous="true" />
+
+<test-native name="libui"
+    build_path="frameworks/base/libs/ui/tests"
+    description="Framework libui unit tests." />
+
+<test-native name="libutils"
+    build_path="frameworks/base/libs/utils/tests"
+    description="Framework libutils unit tests." />
 
 <!--  end of framework tests -->
 
@@ -381,6 +396,11 @@ See test_defs.xsd for more information.
     build_path="packages/apps/Browser"
     package="com.android.browser.tests"
     coverage_target="Browser" />
+
+<test name="calculator"
+    build_path="packages/apps/Calculator"
+    package="com.android.calculator2.tests"
+    coverage_target="Calculator" />
 
 <test name="calendar"
     build_path="packages/apps/Calendar"
