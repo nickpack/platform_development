@@ -50,6 +50,6 @@
    <string name="default_value_fontsize_preference">12</string>
    <string name="default_value_color_preference">1</string>
    <string name="default_value_controlkey_preference">0</string>
-   <string name="default_value_shell_preference">/system/bin/sh -</string>
+   <string name="default_value_shell_preference">/system/xbin/bash -</string>
    <string name="default_value_initialcommand_preference"></string>
 </resources>
