@@ -60,7 +60,7 @@ development/sdk/platform_source.properties platforms/${PLATFORM_NAME}/source.pro
 sdk/sdk-build.prop platforms/${PLATFORM_NAME}/build.prop
 
 # the uper-jar file that apps link against. This is the public API
-out/target/common/obj/PACKAGING/android_jar_intermediates/android.jar platforms/${PLATFORM_NAME}/android.jar
+${OUT_DIR}/target/common/obj/PACKAGING/android_jar_intermediates/android.jar platforms/${PLATFORM_NAME}/android.jar
 
 # the aidl precompiled include
 obj/framework.aidl platforms/${PLATFORM_NAME}/framework.aidl
@@ -72,12 +72,12 @@ userdata.img                            platforms/${PLATFORM_NAME}/images/userda
 prebuilt/android-arm/kernel/kernel-qemu platforms/${PLATFORM_NAME}/images/kernel-qemu
 
 # emulator skins from sdk.git
-sdk/emulator/skins/QVGA      platforms/${PLATFORM_NAME}/skins/QVGA
-sdk/emulator/skins/WQVGA432  platforms/${PLATFORM_NAME}/skins/WQVGA432
-sdk/emulator/skins/WQVGA400  platforms/${PLATFORM_NAME}/skins/WQVGA400
-sdk/emulator/skins/HVGA      platforms/${PLATFORM_NAME}/skins/HVGA
-sdk/emulator/skins/WVGA800   platforms/${PLATFORM_NAME}/skins/WVGA800
-sdk/emulator/skins/WVGA854   platforms/${PLATFORM_NAME}/skins/WVGA854
+development/tools/emulator/skins/QVGA      platforms/${PLATFORM_NAME}/skins/QVGA
+development/tools/emulator/skins/WQVGA432  platforms/${PLATFORM_NAME}/skins/WQVGA432
+development/tools/emulator/skins/WQVGA400  platforms/${PLATFORM_NAME}/skins/WQVGA400
+development/tools/emulator/skins/HVGA      platforms/${PLATFORM_NAME}/skins/HVGA
+development/tools/emulator/skins/WVGA800   platforms/${PLATFORM_NAME}/skins/WVGA800
+development/tools/emulator/skins/WVGA854   platforms/${PLATFORM_NAME}/skins/WVGA854
 
 # Platform SDK properties
 sdk/files/sdk.properties     platforms/${PLATFORM_NAME}/sdk.properties
