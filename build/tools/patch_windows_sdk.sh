@@ -5,8 +5,7 @@
 # - development/tools/build/path_windows_sdk.sh to process the
 #   platform-dependent folders and files.
 # - sdk/build/patch_windows_sdk.sh to process folder and files which
-#   depend on the sdk.git repo. This file is invoked by the makefile
-#   at development/tools/build/windows_sdk.mk.
+#   depend on the sdk.git repo. This file will be invoked by this one.
 #
 # Input arguments:
 # -q = Optional arg to make this silent. Must be given first.
@@ -16,8 +15,6 @@
 #      binaries to use.
 # $3 = An optional replacement for $TOPDIR (inherited from the Android
 #      build system), which is the top directory where Android is located.
-
-set -e # any error stops the build
 
 # Verbose by default. Use -q to make more silent.
 V=""
@@ -35,10 +32,10 @@ WIN_OUT_DIR=$2
 TOPDIR=${TOPDIR:-$3}
 
 # The unix2dos is provided by the APT package "tofrodos". However
-# as for ubuntu lucid, the package renamed the command to "todos".
-UNIX2DOS=$(which unix2dos || true)
+# as of ubuntu lucid, the package renamed the command to "todos".
+UNIX2DOS=`which unix2dos`
 if [[ ! -x $UNIX2DOS ]]; then
-  UNIX2DOS=$(which todos || true)
+  UNIX2DOS=`which todos`
 fi
 
 PLATFORMS=( $TEMP_SDK_DIR/platforms/* )
@@ -111,3 +108,4 @@ fi
 for i in fastboot.exe adb.exe AdbWinApi.dll AdbWinUsbApi.dll; do
     cp -f $V $WIN_OUT_DIR/host/windows-x86/bin/$i $TEMP_SDK_DIR/../$i
 done
+
